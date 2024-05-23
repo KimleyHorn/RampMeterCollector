@@ -1,6 +1,0 @@
-@RampMeterCollector_HostAddress = http://localhost:5285
-
-GET {{RampMeterCollector_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
