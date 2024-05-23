@@ -1,36 +1,19 @@
-﻿using System.Configuration;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Xml.Linq;
-
+﻿using System.Xml.Linq;
 
 namespace RampMeterCollector
 {
 
-    public class RampCollector
+    class RampCollector
     {
-        private List<RampEvent> _rampEvents;
-        private string day;
         private string url = "http://10.252.204.6/v1/asclog/xml/full?since=";
 
-
-        public RampCollector()
-        {
-            day = "05-21-2024%209:00:00.0";
-        }
-
-        public async Task Connect(string connectionString)
+        public async Task Connect()
         {
             try
             {
                 string xmlData = await CollectEvents();
-                Console.WriteLine("XML Data:");
-                Console.WriteLine(xmlData);
-
                 // Parse the XML data
                 XDocument xmlDoc = XDocument.Parse(xmlData);
-                // Do something with the parsed XML data
-                // For example, print the root element
                 Console.WriteLine("Root Element:");
                 Console.WriteLine(xmlDoc.Root);
             }
@@ -40,12 +23,16 @@ namespace RampMeterCollector
             }
         }
 
-
         public async Task<string> CollectEvents()
         {
+            string formattedTime = GetFormattedTimeOneMinuteAgo();
+            string requestUrl = url + formattedTime;
+
+            Console.WriteLine($"Request URL: {requestUrl}");
+
             using (HttpClient client = new HttpClient())
             {
-                HttpResponseMessage response = await client.GetAsync(url);
+                HttpResponseMessage response = await client.GetAsync(requestUrl);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -54,36 +41,45 @@ namespace RampMeterCollector
                 }
                 else
                 {
-                    throw new HttpRequestException($"Failed to fetch XML data. Status code: {response.StatusCode}");
+                    string errorMessage = $"Failed to fetch XML data. Status code: {response.StatusCode}";
+                    if (response.Content != null)
+                    {
+                        string responseBody = await response.Content.ReadAsStringAsync();
+                        errorMessage += $"\nResponse body: {responseBody}";
+                    }
+                    throw new HttpRequestException(errorMessage);
                 }
             }
         }
 
-
         #region Helper Methods
 
-        private DateTime GetTime(string input)
+        private static string GetFormattedTimeOneMinuteAgo()
         {
-            // Replace %20 with a space
-            input = input.Replace("%20", " ");
 
-            // Define the format of the input string
-            string format = "MM-dd-yyyy HH:mm:ss.f";
+        // Original DateTime
+        DateTime originalDateTime = DateTime.Now;
+        Console.WriteLine("Original DateTime (Local): " + originalDateTime);
 
-            // Parse the input string to a DateTime object
-            if (DateTime.TryParseExact(input, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime result))
-            {
-                return result;
-            }
-            else
-            {
-                throw new FormatException("The input string is not in the correct format.");
-            }
+        // Convert to DateTimeOffset
+        DateTimeOffset localDateTimeOffset = new DateTimeOffset(originalDateTime);
+        Console.WriteLine("Local DateTimeOffset: " + localDateTimeOffset);
+
+        // Define the target time zone (e.g., Eastern Standard Time)
+        TimeZoneInfo targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        // Convert to the target time zone
+        DateTimeOffset targetDateTimeOffset = TimeZoneInfo.ConvertTime(localDateTimeOffset, targetTimeZone);
+        Console.WriteLine("Target DateTimeOffset (Eastern Standard Time): " + targetDateTimeOffset);
+            // Get the current time and subtract one minute
+            DateTime minusOne  = originalDateTime.AddMinutes(-1);
+
+            // Format the datetime to the specified format
+            string formattedTime = minusOne.ToString("MM-dd-yyyy H:mm:ss.f");
+
+            return formattedTime;
         }
 
-        
-
         #endregion
-
     }
 }
