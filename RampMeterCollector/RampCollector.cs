@@ -1,4 +1,7 @@
-﻿using System.Xml.Linq;
+﻿using System;
+using System.Data;
+using System.Xml.Linq;
+using Parquet;
 
 namespace RampMeterCollector
 {
@@ -80,6 +83,54 @@ namespace RampMeterCollector
             return formattedTime;
         }
 
+        #endregion
+
+
+        #region Convert To Parquet
+        static DataTable ConvertXmlToDataTable(string xmlData)
+    {
+        XDocument doc = XDocument.Parse(xmlData);
+        DataTable dataTable = new DataTable("Items");
+
+        foreach (XElement element in doc.Root.Elements())
+        {
+            DataRow row = dataTable.NewRow();
+            foreach (XElement child in element.Elements())
+            {
+                if (!dataTable.Columns.Contains(child.Name.LocalName))
+                {
+                    dataTable.Columns.Add(child.Name.LocalName);
+                }
+                row[child.Name.LocalName] = child.Value;
+            }
+            dataTable.Rows.Add(row);
+        }
+
+        return dataTable;
+    }
+
+    static void WriteDataTableToParquet(DataTable dataTable, string filePath)
+    {
+        using (Stream fileStream = File.Create(filePath))
+        {
+            using (var parquetWriter = new ParquetWriter(new Parquet.Schema(dataTable), fileStream))
+            {
+                using (Parquet.RowGroupWriter rowGroupWriter = parquetWriter.CreateRowGroup())
+                {
+                    foreach (DataColumn column in dataTable.Columns)
+                    {
+                        var values = new DataColumn[column.DataType];
+                        for (int i = 0; i < dataTable.Rows.Count; i++)
+                        {
+                            values[i] = (DataColumn)dataTable.Rows[i][column];
+                        }
+                        rowGroupWriter.WriteColumn(new Parquet.Data.Column(column.ColumnName, values));
+                    }
+                }
+            }
+        }
+    }
+}
         #endregion
     }
 }
