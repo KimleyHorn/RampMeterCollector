@@ -34,6 +34,7 @@ namespace RampMeterCollector
             {
                 var xmlData = await CollectEvents();
                 var xmlDoc = XDocument.Parse(xmlData);
+                ConvertXmlToEvent(xmlDoc);
                 Console.WriteLine("Root Element:");
                 Console.WriteLine(xmlDoc.Root);
             }
@@ -100,29 +101,33 @@ namespace RampMeterCollector
             return null;
         }
 
-        private void ConvertXmlToEvent()
+    public void ConvertXmlToEvent(XDocument doc)
+    {
+        if (string.IsNullOrEmpty(RampString))
         {
-            if (RampString == string.Empty)
-            {
-                Console.WriteLine("No Ramp Events");
-                return;
-            }
-            else
-            {
-                var eventArray = RampString.Split("\n");
-                for (var i = 0; i < RampString.Length; i++)
-                {
-                    
-                    var tempRampEvent = new RampEvent
-                    {
-
-                    };
-                }
-            }
-
-
+            Console.WriteLine("No Ramp Events");
+            return;
         }
 
+        var tester = doc.FirstNode.Document.FirstNode;
+        Console.WriteLine(tester);
+        
+        var events = doc.Descendants("EventResponses")
+                        .Descendants("Event")
+                        .Select(e => new RampEvent
+                        {
+                            Id = (int)e.Attribute("ID"),
+                            TimeStamp = DateTime.ParseExact((string)e.Attribute("TimeStamp"), "MM-dd-yyyy HH:mm:ss.f", null),
+                            EventTypeId = (int)e.Attribute("EventTypeID"),
+                            Parameter = (int)e.Attribute("Parameter")
+                        })
+                        .ToList();
+
+        foreach (var rampEvent in events)
+        {
+            Console.WriteLine($"ID: {rampEvent.Id}, TimeStamp: {rampEvent.TimeStamp}, Event Type: {rampEvent.EventTypeId}, Parameter: {rampEvent.Parameter}");
+        }
+    }
         #endregion
 
         #region Convert To Parquet
@@ -166,9 +171,9 @@ namespace RampMeterCollector
             var csvFilePath = "path_to_your_csv_file.csv"; // Specify your desired file path here
 
             using var writer = new StreamWriter(csvFilePath, append: true);
-            using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+            // using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
 
-            csv.WriteRecords(signalEvents);
+            // csv.WriteRecords(signalEvents);
         }
         #endregion
 
