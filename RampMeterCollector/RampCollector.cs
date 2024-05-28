@@ -37,6 +37,7 @@ namespace RampMeterCollector
                 ConvertXmlToEvent(xmlDoc);
                 Console.WriteLine("Root Element:");
                 Console.WriteLine(xmlDoc.Root);
+                await WriteEventsToParquet(RampEvents, "History");
             }
             catch (Exception ex)
             {
@@ -123,6 +124,8 @@ namespace RampMeterCollector
                         })
                         .ToList();
 
+        RampEvents.AddRange(events);
+
         foreach (var rampEvent in events)
         {
             Console.WriteLine($"ID: {rampEvent.Id}, TimeStamp: {rampEvent.TimeStamp}, Event Type: {rampEvent.EventTypeId}, Parameter: {rampEvent.Parameter}");
@@ -132,61 +135,61 @@ namespace RampMeterCollector
 
         #region Convert To Parquet
 
-        static DataTable ConvertXmlToDataTable(string xmlData)
+        private async Task WriteEventsToParquet(List<RampEvent> events, string folderName)
         {
-            var doc = XDocument.Parse(xmlData);
-            var dataTable = new DataTable("Items");
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
-            foreach (var element in doc.Root.Elements())
+            // Combine the base directory with the History folder name
+            string fullPath = Path.Combine(baseDirectory, folderName);
+
+            if (!Directory.Exists(fullPath))
             {
-                var row = dataTable.NewRow();
-                foreach (var child in element.Elements())
+                Directory.CreateDirectory(fullPath);
+            }
+
+            string filePath = Path.Combine(fullPath, $"events_{DateTime.Now:yyyyMMdd_HHmmss}.parquet");
+
+            var fields = new List<DataField>
+        {
+            new DataField<int>("Id"),
+            new DateTimeDataField("TimeStamp", DateTimeFormat.DateAndTime), // Correct way to handle DateTime
+            new DataField<int>("EventTypeId"),
+            new DataField<int?>("Parameter")
+        };
+
+            using (Stream fileStream = File.Create(filePath))
+            {
+                using (var parquetWriter = await ParquetWriter.CreateAsync(new ParquetSchema(fields.ToArray()), fileStream))
                 {
-                    if (!dataTable.Columns.Contains(child.Name.LocalName))
+                    using (ParquetRowGroupWriter rowGroupWriter = parquetWriter.CreateRowGroup())
                     {
-                        dataTable.Columns.Add(child.Name.LocalName);
+                        await WriteColumnAsync(rowGroupWriter, fields[0], events.Select(e => e.Id).ToArray());
+                        await WriteColumnAsync(rowGroupWriter, fields[1], events.Select(e => e.TimeStamp).ToArray());
+                        await WriteColumnAsync(rowGroupWriter, fields[2], events.Select(e => e.EventTypeId).ToArray());
+                        await WriteColumnAsync(rowGroupWriter, fields[3], events.Select(e => e.Parameter).ToArray());
                     }
-
-                    row[child.Name.LocalName] = child.Value;
                 }
-
-                dataTable.Rows.Add(row);
             }
-
-            return dataTable;
         }
 
-
-        /// <summary>
-        /// Saves the given list of signal events to a CSV file.
-        /// </summary>
-        /// <param name="signalEvents">The list of signal events to save</param>
-        private void SaveToCsv(List<RampEvent> signalEvents)
+        private static async Task WriteColumnAsync<T>(ParquetRowGroupWriter rowGroupWriter, DataField field, T[] data)
         {
-            if (signalEvents == null || !signalEvents.Any())
-            {
-                return;
-            }
-
-            var csvFilePath = "path_to_your_csv_file.csv"; // Specify your desired file path here
-
-            using var writer = new StreamWriter(csvFilePath, append: true);
-            // using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
-
-            // csv.WriteRecords(signalEvents);
+            var dataColumn = new Parquet.Data.DataColumn(field, data);
+            await rowGroupWriter.WriteColumnAsync(dataColumn);
         }
-        #endregion
+    
+    #endregion
 
-        #region Error Logging
+    #region Error Logging
 
-        /// <summary>
-        /// The overloaded method that will write to the error log
-        /// </summary>
-        /// <param name="applicationName">The name of the file the error is coming from</param>
-        /// <param name="functionName">The name of the function the error is coming from</param>
-        /// <param name="ex">The exception being thrown</param>
-        /// <returns>A task since the method is asynchronous</returns>
-        public static async Task WriteToErrorLog(string applicationName,
+    /// <summary>
+    /// The overloaded method that will write to the error log
+    /// </summary>
+    /// <param name="applicationName">The name of the file the error is coming from</param>
+    /// <param name="functionName">The name of the function the error is coming from</param>
+    /// <param name="ex">The exception being thrown</param>
+    /// <returns>A task since the method is asynchronous</returns>
+    public static async Task WriteToErrorLog(string applicationName,
      string functionName, Exception ex)
         {
             await WriteToErrorLog(applicationName, functionName, ex.Message,
@@ -229,6 +232,4 @@ namespace RampMeterCollector
 
         #endregion Error Logging
     }
-
-
 }
