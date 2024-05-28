@@ -37,7 +37,7 @@ namespace RampMeterCollector
                 ConvertXmlToEvent(xmlDoc);
                 Console.WriteLine("Root Element:");
                 Console.WriteLine(xmlDoc.Root);
-                await WriteEventsToParquet(RampEvents, "History");
+                await WriteEventsToParquet(RampEvents, "Ramp Meter History");
             }
             catch (Exception ex)
             {
@@ -137,24 +137,25 @@ namespace RampMeterCollector
 
         private async Task WriteEventsToParquet(List<RampEvent> events, string folderName)
         {
-            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        // Determine the project directory
+        string projectDirectory = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).Parent.Parent.Parent.Parent.Parent.FullName;
 
-            // Combine the base directory with the History folder name
-            string fullPath = Path.Combine(baseDirectory, folderName);
+        // Combine the project directory with the History folder name
+        string fullPath = Path.Combine(projectDirectory, folderName);
 
-            if (!Directory.Exists(fullPath))
-            {
-                Directory.CreateDirectory(fullPath);
-            }
+        if (!Directory.Exists(fullPath))
+        {
+            Directory.CreateDirectory(fullPath);
+        }
 
-            string filePath = Path.Combine(fullPath, $"events_{DateTime.Now:yyyyMMdd_HHmmss}.parquet");
+            string filePath = Path.Combine(fullPath, $"ramp_meter_events_{DateTime.Now:yyyy-MM-dd_HHmmss}.parquet");
 
             var fields = new List<DataField>
         {
             new DataField<int>("Id"),
             new DateTimeDataField("TimeStamp", DateTimeFormat.DateAndTime), // Correct way to handle DateTime
             new DataField<int>("EventTypeId"),
-            new DataField<int?>("Parameter")
+            new DataField<int>("Parameter")
         };
 
             using (Stream fileStream = File.Create(filePath))
