@@ -1,21 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-	  <OutputType>Exe</OutputType>
-	  <TargetFramework>net8.0</TargetFramework>
-	  <Nullable>enable</Nullable>
-	  <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Version>1.0.1</Version>
+		<FileVersion>1.0.1.0</FileVersion>
+		<AssemblyVersion>1.0.1.0</AssemblyVersion>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <None Include="App.config" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Include="App.config" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Parquet.Net" Version="4.23.5" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
-    <PackageReference Include="MySqlConnector" Version="2.2.5" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Parquet.Net" Version="4.23.5" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+		<PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
+		<PackageReference Include="MySqlConnector" Version="2.2.5" />
+	</ItemGroup>
 
 </Project>
